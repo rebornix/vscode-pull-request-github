@@ -259,7 +259,7 @@ export class PullRequestManager implements IPullRequestManager {
 			number: pullRequest.prNumber,
 			per_page: 100
 		});
-		const rawComments = reviewData.data;
+		const rawComments = reviewData.data.map(comment => this.addCommentPermissions(comment, remote));
 		return parserCommentDiffHunk(rawComments);
 	}
 
@@ -305,7 +305,7 @@ export class PullRequestManager implements IPullRequestManager {
 			review_id: reviewId
 		});
 
-		const rawComments = reviewData.data;
+		const rawComments = reviewData.data.map(comment => this.addCommentPermissions(comment, remote));
 		return parserCommentDiffHunk(rawComments);
 	}
 
@@ -345,7 +345,7 @@ export class PullRequestManager implements IPullRequestManager {
 			repo: remote.repositoryName
 		});
 
-		return promise.data;
+		return this.addCommentPermissions(promise.data, remote);
 	}
 
 	async createCommentReply(pullRequest: IPullRequestModel, body: string, reply_to: string): Promise<Comment> {
@@ -360,7 +360,7 @@ export class PullRequestManager implements IPullRequestManager {
 				in_reply_to: Number(reply_to)
 			});
 
-			return ret.data;
+			return this.addCommentPermissions(ret.data, remote);
 		} catch (e) {
 			if (e.code && e.code === 422) {
 				throw new Error('There is already a pending review for this pull request on GitHub. Please finish or dismiss this review to be able to leave more comments');
@@ -384,7 +384,7 @@ export class PullRequestManager implements IPullRequestManager {
 				position: position
 			});
 
-			return ret.data;
+			return this.addCommentPermissions(ret.data, remote);
 		} catch (e) {
 			if (e.code && e.code === 422) {
 				throw new Error('There is already a pending review for this pull request on GitHub. Please finish or dismiss this review to be able to leave more comments');
@@ -393,6 +393,48 @@ export class PullRequestManager implements IPullRequestManager {
 			}
 		}
 	}
+
+	async editComment(pullRequest: IPullRequestModel, commentId: string, text: string): Promise<Comment> {
+		const { octokit, remote } = await (pullRequest as PullRequestModel).githubRepository.ensure();
+
+		try {
+			let ret = await octokit.pullRequests.editComment({
+				owner: remote.owner,
+				repo: remote.repositoryName,
+				body: text,
+				comment_id: commentId
+			});
+
+			return this.addCommentPermissions(ret.data, remote);
+		} catch (e) {
+			if (e.code && e.code === 422) {
+				throw new Error('There is already a pending review for this pull request on GitHub. Please finish or dismiss this review to be able to leave more comments');
+			} else {
+				throw e;
+			}
+		}
+	}
+
+	async deleteComment(pullRequest: IPullRequestModel, commentId: string): Promise<void> {
+		const { octokit, remote } = await (pullRequest as PullRequestModel).githubRepository.ensure();
+
+		let ret = await octokit.pullRequests.deleteComment({
+			owner: remote.owner,
+			repo: remote.repositoryName,
+			comment_id: commentId
+		});
+
+		return ret.data;
+	}
+
+	private addCommentPermissions(rawComment: Comment, remote: Remote): Comment {
+		const isCurrentUser = this._credentialStore.isCurrentUser(rawComment.user.login, remote);
+		rawComment.canEdit = isCurrentUser;
+		rawComment.canDelete = isCurrentUser;
+
+		return rawComment;
+	}
+
 
 	private async changePullRequestState(state: 'open' | 'closed', pullRequest: IPullRequestModel): Promise<any> {
 		const { octokit, remote } = await (pullRequest as PullRequestModel).githubRepository.ensure();

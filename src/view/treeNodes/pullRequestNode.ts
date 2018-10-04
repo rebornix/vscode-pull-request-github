@@ -99,7 +99,9 @@ export function providePRDocumentComments(
 					commentId: comment.id,
 					body: new vscode.MarkdownString(comment.body),
 					userName: comment.user.login,
-					gravatar: comment.user.avatar_url
+					gravatar: comment.user.avatar_url,
+					canEdit: comment.canEdit,
+					canDelete: comment.canDelete
 				};
 			}),
 			collapsibleState: vscode.CommentThreadCollapsibleState.Expanded,
@@ -140,7 +142,9 @@ function commentsToCommentThreads(fileChange: InMemFileChangeNode, comments: Com
 					commentId: comment.id,
 					body: new vscode.MarkdownString(comment.body),
 					userName: comment.user.login,
-					gravatar: comment.user.avatar_url
+					gravatar: comment.user.avatar_url,
+					canEdit: comment.canEdit,
+					canDelete: comment.canDelete
 				};
 			}),
 			collapsibleState: vscode.CommentThreadCollapsibleState.Expanded,
@@ -277,7 +281,9 @@ export class PRNode extends TreeNode {
 						onDidChangeCommentThreads: this._onDidChangeCommentThreads.event,
 						provideDocumentComments: this.provideDocumentComments.bind(this),
 						createNewCommentThread: this.createNewCommentThread.bind(this),
-						replyToCommentThread: this.replyToCommentThread.bind(this)
+						replyToCommentThread: this.replyToCommentThread.bind(this),
+						editComment: this.editComment.bind(this),
+						deleteComment: this.deleteComment.bind(this)
 					});
 				}
 			} else {
@@ -448,7 +454,9 @@ export class PRNode extends TreeNode {
 				commentId: rawComment.id,
 				body: new vscode.MarkdownString(rawComment.body),
 				userName: rawComment.user.login,
-				gravatar: rawComment.user.avatar_url
+				gravatar: rawComment.user.avatar_url,
+				canEdit: rawComment.canEdit,
+				canDelete: rawComment.canDelete
 			};
 
 			fileChange.comments.push(rawComment);
@@ -463,6 +471,47 @@ export class PRNode extends TreeNode {
 			return commentThread;
 		} catch (e) {
 			throw new Error(formatError(e));
+		}
+	}
+
+	private async editComment(document: vscode.TextDocument, comment: vscode.Comment, text: string): Promise<void> {
+		const uri = document.uri;
+		const params = fromPRUri(uri);
+		const fileChange = this._fileChanges.find(change => change.fileName === params.fileName);
+
+		if (!fileChange) {
+			throw new Error('No matching file found');
+		}
+
+		if (fileChange instanceof RemoteFileChangeNode) {
+			throw new Error('Cannot edit comments on this file');
+		}
+
+		const rawComment = await this._prManager.editComment(this.pullRequestModel, comment.commentId, text);
+
+		const index = fileChange.comments.findIndex(c => c.id === comment.commentId);
+		if (index > -1) {
+			fileChange.comments.splice(index, 1, rawComment);
+		}
+	}
+
+	private async deleteComment(document: vscode.TextDocument, comment: vscode.Comment): Promise<void> {
+		const uri = document.uri;
+		const params = fromPRUri(uri);
+		const fileChange = this._fileChanges.find(change => change.fileName === params.fileName);
+
+		if (!fileChange) {
+			throw new Error('No matching file found');
+		}
+
+		if (fileChange instanceof RemoteFileChangeNode) {
+			throw new Error('Cannot edit comments on this file');
+		}
+
+		await this._prManager.deleteComment(this.pullRequestModel, comment.commentId);
+		const index = fileChange.comments.findIndex(c => c.id === comment.commentId);
+		if (index > -1) {
+			fileChange.comments.splice(index, 1);
 		}
 	}
 
@@ -485,7 +534,9 @@ export class PRNode extends TreeNode {
 				commentId: rawComment.id,
 				body: new vscode.MarkdownString(rawComment.body),
 				userName: rawComment.user.login,
-				gravatar: rawComment.user.avatar_url
+				gravatar: rawComment.user.avatar_url,
+				canEdit: rawComment.canEdit,
+				canDelete: rawComment.canDelete
 			});
 
 			fileChange.comments.push(rawComment);
