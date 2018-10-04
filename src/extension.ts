@@ -14,6 +14,7 @@ import { PullRequestManager } from './github/pullRequestManager';
 import { formatError, isDescendant, filterEvent, onceEvent } from './common/utils';
 import { GitExtension, Repository } from './typings/git';
 import { Telemetry } from './common/telemetry';
+import { handler as uriHandler } from './common/uri';
 import { ITelemetry } from './github/interface';
 
 let telemetry: ITelemetry;
@@ -37,6 +38,8 @@ async function init(context: vscode.ExtensionContext, repository: Repository): P
 	});
 
 	context.subscriptions.push(configuration.listenForVSCodeChanges());
+
+	context.subscriptions.push(vscode.window.registerUriHandler(uriHandler));
 
 	const prManager = new PullRequestManager(configuration, repository, telemetry);
 	const reviewManager = new ReviewManager(context, configuration, repository, prManager, telemetry);
