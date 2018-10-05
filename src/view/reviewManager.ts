@@ -394,7 +394,6 @@ export class ReviewManager implements vscode.DecorationProvider {
 		}
 	}
 
-
 	private async deleteComment(document: vscode.TextDocument, comment: vscode.Comment): Promise<void> {
 		try {
 			const matchedFile = this.findMatchedFileByUri(document);
@@ -543,7 +542,7 @@ export class ReviewManager implements vscode.DecorationProvider {
 					);
 				}
 
-				const uri = vscode.Uri.parse(change.fileName);
+				const uri = vscode.Uri.file(change.fileName);
 				let changedItem = new GitFileChangeNode(
 					pr,
 					change.status,
@@ -576,7 +575,7 @@ export class ReviewManager implements vscode.DecorationProvider {
 					}
 
 					const oldComments = commentsForFile[fileName];
-					const uri = vscode.Uri.parse(nodePath.join(`commit~${commit.substr(0, 8)}`, fileName));
+					const uri = vscode.Uri.file(nodePath.join(`commit~${commit.substr(0, 8)}`, fileName));
 					const obsoleteFileChange = new GitFileChangeNode(
 						pr,
 						GitChangeType.MODIFY,

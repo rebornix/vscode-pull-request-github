@@ -65,13 +65,14 @@ export class PRDocumentCommentProvider implements vscode.DocumentCommentProvider
 		return await this._prDocumentCommentProviders[params.prNumber].replyToCommentThread(document, range, commentThread, text, token);
 	}
 
-	async editComment(document: vscode.TextDocument, comment: vscode.Comment, text: vscode.MarkdownString, token: vscode.CancellationToken): Promise<void> {
+	async editComment(document: vscode.TextDocument, comment: vscode.Comment, text: string, token: vscode.CancellationToken): Promise<void> {
 		let uri = document.uri;
 		let params = fromPRUri(uri);
 
 		if (!this._prDocumentCommentProviders[params.prNumber]) {
-			throw new Error("Couldn't find document provider");
+			throw new Error(`Couldn't find document provider`);
 		}
+
 
 		return await this._prDocumentCommentProviders[params.prNumber].editComment(document, comment, text, token);
 	}
