@@ -221,6 +221,8 @@ export class ReviewManager implements vscode.DecorationProvider {
 			this.clear(true);
 			return;
 		}
+		
+		// asdf
 
 		// we switch to another PR, let's clean up first.
 		Logger.appendLine(`Review> current branch ${this._repository.state.HEAD.name} is associated with pull request #${matchingPullRequestMetadata.prNumber}`);
